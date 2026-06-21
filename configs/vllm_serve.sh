@@ -1,9 +1,11 @@
 #!/usr/bin/env bash
-# Launch vLLM with flags frozen in configs/benchmark_matrix.yaml.
+# Launch vLLM with flags from the matrix config (default: configs/benchmark_matrix.yaml).
+# Override via .env: MATRIX=configs/matrix_qwen27b.yaml
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-MATRIX="${ROOT}/configs/benchmark_matrix.yaml"
+# shellcheck source=../scripts/load_env.sh
+source "$ROOT/scripts/load_env.sh"
 
 if [[ ! -f "$MATRIX" ]]; then
   echo "Missing matrix config: $MATRIX" >&2
@@ -30,7 +32,8 @@ print(f"EXTRA_ARGS={shlex.quote(' '.join(str(a) for a in extra))}")
 PY
 )"
 
-echo "Starting vLLM: model=$MODEL host=$HOST port=$PORT tp=$TP"
+echo "Starting vLLM from $MATRIX"
+echo "  model=$MODEL host=$HOST port=$PORT tp=$TP max_len=$MAX_LEN"
 
 exec vllm serve "$MODEL" \
   --host "$HOST" \

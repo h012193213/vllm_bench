@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import shutil
 import subprocess
 import sys
@@ -20,6 +21,38 @@ ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_MATRIX = ROOT / "configs" / "benchmark_matrix.yaml"
 DEFAULT_UPLOAD_CONFIG = ROOT / "configs" / "upload.yaml"
 DEFAULT_GUIDELLM = Path("/root/bench_venv/bin/guidellm")
+
+
+def load_env_file() -> None:
+    env_path = ROOT / ".env"
+    if not env_path.exists():
+        return
+    for line in env_path.read_text().splitlines():
+        line = line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, _, value = line.partition("=")
+        key = key.strip()
+        value = value.strip().strip('"').strip("'")
+        os.environ.setdefault(key, value)
+
+
+def resolve_matrix_path() -> Path:
+    raw = os.environ.get("MATRIX")
+    if not raw:
+        return DEFAULT_MATRIX
+    path = Path(raw)
+    if not path.is_absolute():
+        path = ROOT / path
+    return path
+
+
+def env_default_target() -> str | None:
+    return os.environ.get("VLLM_TARGET") or os.environ.get("GUIDELLM_TARGET")
+
+
+def env_default_guidellm() -> str | None:
+    return os.environ.get("GUIDELLM")
 
 
 def load_matrix(path: Path) -> dict[str, Any]:
@@ -155,12 +188,27 @@ def run_scenario(
 
 
 def main() -> None:
+    load_env_file()
+
     parser = argparse.ArgumentParser(description="Run fixed-criteria GuideLLM benchmark matrix")
     parser.add_argument("--run-id", required=True, help="Unique run identifier")
-    parser.add_argument("--matrix", type=Path, default=DEFAULT_MATRIX)
+    parser.add_argument(
+        "--matrix",
+        type=Path,
+        default=None,
+        help="Matrix YAML (default: MATRIX from .env or configs/benchmark_matrix.yaml)",
+    )
     parser.add_argument("--results-dir", type=Path, default=ROOT / "results")
-    parser.add_argument("--target", default=None, help="Override GuideLLM target URL")
-    parser.add_argument("--guidellm", default=None, help="Path to guidellm binary")
+    parser.add_argument(
+        "--target",
+        default=None,
+        help="Override GuideLLM target URL (default: VLLM_TARGET from .env or matrix)",
+    )
+    parser.add_argument(
+        "--guidellm",
+        default=None,
+        help="Path to guidellm binary (default: GUIDELLM from .env or PATH)",
+    )
     parser.add_argument("--pilot", action="store_true", help="Use pilot settings (shorter runs)")
     parser.add_argument("--skip-health-check", action="store_true")
     parser.add_argument("--continue-on-failure", action="store_true")
@@ -168,10 +216,11 @@ def main() -> None:
     parser.add_argument("--no-upload", action="store_true", help="Skip SSH upload after benchmark")
     args = parser.parse_args()
 
-    matrix = load_matrix(args.matrix)
-    guidellm = resolve_guidellm(args.guidellm)
+    matrix_path = args.matrix or resolve_matrix_path()
+    guidellm = resolve_guidellm(args.guidellm or env_default_guidellm())
+    matrix = load_matrix(matrix_path)
     g = matrix["guidellm"]
-    target = args.target or g["target"]
+    target = args.target or env_default_target() or g["target"]
 
     pilot = matrix.get("pilot") or {}
     if args.pilot:

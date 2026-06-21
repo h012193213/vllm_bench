@@ -14,6 +14,9 @@ vllm_venv/
 # Generated on central machine after consolidate
 results/results.duckdb
 
+# Local environment
+.env
+
 # Editor / OS
 .DS_Store
 *.swp
