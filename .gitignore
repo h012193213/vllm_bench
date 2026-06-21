@@ -1,0 +1,21 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+dist/
+build/
+
+# Virtual environments
+venv/
+vllm_venv/
+.venv/
+
+# Generated on central machine after consolidate
+results/results.duckdb
+
+# Editor / OS
+.DS_Store
+*.swp
+.idea/
+.vscode/

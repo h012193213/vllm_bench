@@ -1,0 +1,7 @@
+# Edit once: central machine that receives benchmark results via SSH/rsync.
+upload:
+  enabled: false
+  central_host: "your-analysis-vm.example.com"
+  central_user: "root"
+  central_path: "/root/vllm_bench/results"
+  ssh_key: "/root/.ssh/id_rsa"   # optional; set null to use default SSH agent

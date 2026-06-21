@@ -1,0 +1,61 @@
+# Fixed-criteria benchmark matrix for cross-hardware comparison.
+# All platforms must use identical vLLM server flags and GuideLLM scenarios.
+
+model: "QuantTrio/Qwen3.6-27B-AWQ"
+
+vllm:
+  host: "0.0.0.0"
+  port: 8000
+  tensor_parallel_size: 1
+  gpu_memory_utilization: 0.90
+  max_model_len: 8192
+  extra_args: []
+
+guidellm:
+  target: "http://127.0.0.1:8000"
+  random_seed: 42
+  request_format: "/v1/chat/completions"
+  data: "kind=synthetic_text,prompt_tokens=256,output_tokens=128,turns=1"
+  max_seconds: 300
+  warmup: null
+  cooldown: null
+  rampup: 0.0
+  outputs:
+    - json
+    - csv
+    - html
+  scenario_idle_seconds: 30
+
+  scenarios:
+    - name: baseline_sync
+      profile: synchronous
+    - name: load_rps_4
+      profile: constant
+      rate: 4
+      rampup: 10
+    - name: load_rps_8
+      profile: constant
+      rate: 8
+      rampup: 10
+    - name: load_conc_16
+      profile: concurrent
+      rate: 16
+      rampup: 10
+
+quality_gates:
+  max_error_rate: 0.01
+  max_incomplete_rate: 0.05
+  min_successful_requests: 100
+
+slo:
+  latency_p95_sec: 2.0
+  ttft_p95_ms: 500.0
+
+# Shorter settings for smoke / pilot validation.
+pilot:
+  max_seconds: 60
+  scenario_idle_seconds: 5
+  min_successful_requests: 5
+  scenarios:
+    - baseline_sync
+    - load_rps_4

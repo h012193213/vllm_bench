@@ -1,0 +1,24 @@
+{
+  "run_id": "pilot-do-nyc1-20260621-203910",
+  "collected_at": "2026-06-21T12:39:10.959108+00:00",
+  "cloud": {
+    "provider": "digitalocean",
+    "region": "nyc1",
+    "instance_type": null,
+    "instance_id": "570495571",
+    "availability_zone": null
+  },
+  "cpu": {
+    "cores": 2,
+    "model": "DO-Regular",
+    "architecture": "x86_64"
+  },
+  "gpu": [],
+  "gpu_count": 0,
+  "platform": "Linux-5.15.0-179-generic-x86_64-with-glibc2.35",
+  "python_version": "3.10.12",
+  "guidellm_version": null,
+  "vllm_version": null,
+  "hostname": "ubuntu-s-2vcpu-4gb-nyc1",
+  "notes": "client colocated on same VM when possible"
+}

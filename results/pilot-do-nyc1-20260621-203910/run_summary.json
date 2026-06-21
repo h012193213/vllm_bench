@@ -1,0 +1,11 @@
+{
+  "run_id": "pilot-do-nyc1-20260621-203910",
+  "target": "http://59.127.5.172:11125",
+  "pilot": true,
+  "failures": [
+    "baseline_sync: guidellm exited with code 1",
+    "baseline_sync: missing benchmarks.json",
+    "load_rps_4: guidellm exited with code 2",
+    "load_rps_4: missing benchmarks.json"
+  ]
+}

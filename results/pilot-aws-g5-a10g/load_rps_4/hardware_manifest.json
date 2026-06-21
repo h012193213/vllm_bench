@@ -1,0 +1,25 @@
+{
+  "run_id": "pilot-aws-g5-a10g",
+  "cloud": {
+    "provider": "aws",
+    "region": "us-east-1",
+    "instance_type": "g5.xlarge",
+    "instance_id": "i-0seedpilot001"
+  },
+  "cpu": {
+    "model": "Intel Xeon Platinum 8259CL",
+    "cores": 4,
+    "architecture": "x86_64"
+  },
+  "gpu": [
+    {
+      "name": "NVIDIA A10G",
+      "count": 1,
+      "vram_gb": 24.0,
+      "driver": "535.54.03"
+    }
+  ],
+  "gpu_count": 1,
+  "guidellm_version": "0.6.0",
+  "notes": "Pilot seed from archived GuideLLM run; simulated second hardware target"
+}

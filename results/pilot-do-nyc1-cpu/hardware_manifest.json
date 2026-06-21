@@ -1,0 +1,18 @@
+{
+  "run_id": "pilot-do-nyc1-cpu",
+  "cloud": {
+    "provider": "digitalocean",
+    "region": "nyc1",
+    "instance_type": "s-2vcpu-4gb",
+    "instance_id": "570495571"
+  },
+  "cpu": {
+    "model": "DO-Regular",
+    "cores": 2,
+    "architecture": "x86_64"
+  },
+  "gpu": [],
+  "gpu_count": 0,
+  "guidellm_version": "0.6.0",
+  "notes": "Pilot seed from archived GuideLLM run; remote vLLM client"
+}
