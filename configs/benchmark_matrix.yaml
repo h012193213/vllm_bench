@@ -1,13 +1,31 @@
-# Fixed-criteria benchmark matrix for cross-hardware comparison.
-# All platforms must use identical vLLM server flags and GuideLLM scenarios.
+# Fixed-criteria benchmark matrix for cross-hardware / cross-engine comparison.
+# Each engine block (vllm/sglang/tensorrt_llm) is self-contained — all serve args live there.
+# guidellm.target port should match the active engine's port.
+# Start the matching serve script (configs/*_serve.sh) before running benchmarks.
 
-model: "Qwen/Qwen2.5-14B-Instruct-AWQ"
+#model: "Qwen/Qwen2.5-14B-Instruct-AWQ"
+model: "dummy-model"
 
 vllm:
   host: "0.0.0.0"
   port: 8001
   tensor_parallel_size: 1
   gpu_memory_utilization: 0.90
+  max_model_len: 8192
+  extra_args: []
+
+sglang:
+  host: "0.0.0.0"
+  port: 8001
+  tensor_parallel_size: 1
+  mem_fraction_static: 0.90
+  max_model_len: 8192
+  extra_args: []
+
+tensorrt_llm:
+  host: "0.0.0.0"
+  port: 8001
+  tensor_parallel_size: 1
   max_model_len: 8192
   extra_args: []
 

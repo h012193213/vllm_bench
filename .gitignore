@@ -16,6 +16,7 @@ results/
 
 # Local environment
 .env
+configs/.active_engine
 
 # Editor / OS
 .DS_Store

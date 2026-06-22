@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import sys
 from pathlib import Path
 from typing import Any
 
@@ -12,6 +13,9 @@ import duckdb
 import pandas as pd
 
 ROOT = Path(__file__).resolve().parents[1]
+
+sys.path.insert(0, str(ROOT / "scripts"))
+from engine_config import infer_engine_from_run_id  # noqa: E402
 
 
 def _metric_value(dist: dict[str, Any] | None, field: str = "mean") -> float | None:
@@ -39,6 +43,10 @@ def load_manifest(path: Path) -> dict[str, Any]:
     if path.exists():
         return json.loads(path.read_text())
     return {}
+
+
+def resolve_engine(run_id: str, manifest: dict[str, Any]) -> str | None:
+    return manifest.get("inference_engine") or infer_engine_from_run_id(run_id)
 
 
 def parse_benchmark_row(
@@ -110,6 +118,8 @@ def parse_benchmark_row(
                 "run_id": run_id,
                 "scenario": scenario,
                 "strategy": strategy,
+                "inference_engine": resolve_engine(run_id, manifest),
+                "engine_version": manifest.get("engine_version"),
                 "cloud_provider": cloud.get("provider"),
                 "cloud_region": cloud.get("region"),
                 "instance_type": cloud.get("instance_type"),

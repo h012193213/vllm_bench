@@ -17,6 +17,14 @@ from typing import Any
 
 import yaml
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from engine_config import (  # noqa: E402
+    generate_run_id,
+    read_active_engine,
+    require_engine_config,
+    target_port,
+)
+
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_MATRIX = ROOT / "configs" / "benchmark_matrix.yaml"
 DEFAULT_UPLOAD_CONFIG = ROOT / "configs" / "upload.yaml"
@@ -48,7 +56,11 @@ def resolve_matrix_path() -> Path:
 
 
 def env_default_target() -> str | None:
-    return os.environ.get("VLLM_TARGET") or os.environ.get("GUIDELLM_TARGET")
+    return (
+        os.environ.get("BENCHMARK_TARGET")
+        or os.environ.get("VLLM_TARGET")
+        or os.environ.get("GUIDELLM_TARGET")
+    )
 
 
 def env_default_guidellm() -> str | None:
@@ -191,7 +203,11 @@ def main() -> None:
     load_env_file()
 
     parser = argparse.ArgumentParser(description="Run fixed-criteria GuideLLM benchmark matrix")
-    parser.add_argument("--run-id", required=True, help="Unique run identifier")
+    parser.add_argument(
+        "--run-id",
+        default=None,
+        help="Unique run identifier (default: {gpu}-{engine}-{MMDD-HHMM} from active engine marker)",
+    )
     parser.add_argument(
         "--matrix",
         type=Path,
@@ -217,10 +233,24 @@ def main() -> None:
     args = parser.parse_args()
 
     matrix_path = args.matrix or resolve_matrix_path()
+    active = read_active_engine()
+    engine = active["engine"]
     guidellm = resolve_guidellm(args.guidellm or env_default_guidellm())
     matrix = load_matrix(matrix_path)
+    require_engine_config(matrix, engine, matrix_path)
     g = matrix["guidellm"]
     target = args.target or env_default_target() or g["target"]
+
+    run_id = args.run_id or generate_run_id(engine)
+    print(f"Run ID: {run_id} (engine: {engine})")
+
+    marker_port = active.get("port")
+    resolved_port = target_port(target)
+    if marker_port is not None and resolved_port is not None and int(marker_port) != resolved_port:
+        print(
+            f"Warning: active engine port {marker_port} differs from benchmark target port {resolved_port}",
+            file=sys.stderr,
+        )
 
     pilot = matrix.get("pilot") or {}
     if args.pilot:
@@ -238,13 +268,22 @@ def main() -> None:
     if scenario_names:
         scenarios = [s for s in scenarios if s["name"] in scenario_names]
 
-    run_dir = args.results_dir / args.run_id
+    run_dir = args.results_dir / run_id
     run_dir.mkdir(parents=True, exist_ok=True)
 
     manifest_path = args.manifest or run_dir / "hardware_manifest.json"
     if not manifest_path.exists():
         subprocess.run(
-            [sys.executable, str(ROOT / "scripts" / "collect_hardware.py"), "--out", str(manifest_path), "--run-id", args.run_id],
+            [
+                sys.executable,
+                str(ROOT / "scripts" / "collect_hardware.py"),
+                "--out",
+                str(manifest_path),
+                "--run-id",
+                run_id,
+                "--inference-engine",
+                engine,
+            ],
             check=True,
         )
 
@@ -284,7 +323,13 @@ def main() -> None:
             print(f"Idle {idle_seconds}s before next scenario...")
             time.sleep(idle_seconds)
 
-    summary = {"run_id": args.run_id, "target": target, "pilot": args.pilot, "failures": failures}
+    summary = {
+        "run_id": run_id,
+        "inference_engine": engine,
+        "target": target,
+        "pilot": args.pilot,
+        "failures": failures,
+    }
     (run_dir / "run_summary.json").write_text(json.dumps(summary, indent=2) + "\n")
 
     maybe_upload_results(args.no_upload)

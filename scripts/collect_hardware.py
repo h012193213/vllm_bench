@@ -17,6 +17,12 @@ from typing import Any
 
 ROOT = Path(__file__).resolve().parents[1]
 
+ENGINE_PACKAGES: dict[str, str] = {
+    "vllm": "vllm",
+    "sglang": "sglang",
+    "tensorrt_llm": "tensorrt_llm",
+}
+
 
 def _run(cmd: list[str]) -> str | None:
     if shutil.which(cmd[0]) is None:
@@ -214,7 +220,20 @@ def collect_cloud() -> dict[str, Any]:
     return cloud
 
 
-def collect_manifest(run_id: str | None = None, notes: str | None = None) -> dict[str, Any]:
+def engine_version(inference_engine: str | None) -> str | None:
+    if not inference_engine:
+        return None
+    package = ENGINE_PACKAGES.get(inference_engine)
+    if not package:
+        return None
+    return _package_version(package)
+
+
+def collect_manifest(
+    run_id: str | None = None,
+    notes: str | None = None,
+    inference_engine: str | None = None,
+) -> dict[str, Any]:
     load_env_file()
     cloud = apply_cloud_env_fallback(collect_cloud())
 
@@ -225,6 +244,7 @@ def collect_manifest(run_id: str | None = None, notes: str | None = None) -> dic
         run_id = f"{ts}-{provider}-{region}"
 
     gpus = collect_gpus()
+    version = engine_version(inference_engine)
     manifest: dict[str, Any] = {
         "run_id": run_id,
         "collected_at": datetime.now(timezone.utc).isoformat(),
@@ -235,10 +255,14 @@ def collect_manifest(run_id: str | None = None, notes: str | None = None) -> dic
         "platform": platform.platform(),
         "python_version": platform.python_version(),
         "guidellm_version": _package_version("guidellm"),
-        "vllm_version": _package_version("vllm"),
         "hostname": platform.node(),
         "notes": notes or "client colocated on same VM when possible",
     }
+    if inference_engine:
+        manifest["inference_engine"] = inference_engine
+        manifest["engine_version"] = version
+    if inference_engine == "vllm" or inference_engine is None:
+        manifest["vllm_version"] = _package_version("vllm")
     return manifest
 
 
@@ -247,9 +271,18 @@ def main() -> None:
     parser.add_argument("--out", type=Path, required=True, help="Output path for hardware_manifest.json")
     parser.add_argument("--run-id", default=None, help="Optional run identifier")
     parser.add_argument("--notes", default=None, help="Optional free-form notes")
+    parser.add_argument(
+        "--inference-engine",
+        default=None,
+        help="Inference engine id (vllm, sglang, tensorrt_llm)",
+    )
     args = parser.parse_args()
 
-    manifest = collect_manifest(run_id=args.run_id, notes=args.notes)
+    manifest = collect_manifest(
+        run_id=args.run_id,
+        notes=args.notes,
+        inference_engine=args.inference_engine,
+    )
     args.out.parent.mkdir(parents=True, exist_ok=True)
     args.out.write_text(json.dumps(manifest, indent=2) + "\n")
     print(json.dumps(manifest, indent=2))

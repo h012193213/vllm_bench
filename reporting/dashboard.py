@@ -44,6 +44,8 @@ class ColumnMeta:
 COLUMN_META: dict[str, ColumnMeta] = {
     "run_id": ColumnMeta("Run", "Unique benchmark run identifier.", "text", True),
     "scenario": ColumnMeta("Scenario", "Fixed-load test profile from the benchmark matrix.", "text", True),
+    "inference_engine": ColumnMeta("Engine", "Inference engine (vllm, sglang, tensorrt_llm).", "text", True),
+    "engine_version": ColumnMeta("Engine version", "Installed inference engine package version.", "text", False),
     "strategy": ColumnMeta("Load strategy", "GuideLLM scheduling strategy (sync, constant RPS, concurrent).", "text", False),
     "cloud_provider": ColumnMeta("Cloud", "Cloud or hosting provider (auto-detected or from .env).", "text", True),
     "cloud_region": ColumnMeta("Region", "Cloud region or datacenter.", "text", False),
@@ -54,7 +56,7 @@ COLUMN_META: dict[str, ColumnMeta] = {
     "gpu_name": ColumnMeta("GPU", "NVIDIA GPU model name.", "text", True),
     "gpu_count": ColumnMeta("GPU count", "Number of GPUs on the host.", "number", False),
     "gpu_vram_gb": ColumnMeta("VRAM (GB)", "GPU memory in gigabytes (first GPU).", "number", False),
-    "model": ColumnMeta("LLM model", "Model served by vLLM during the benchmark.", "text", False),
+    "model": ColumnMeta("LLM model", "Model served during the benchmark.", "text", False),
     "latency_mean_sec": ColumnMeta("Latency mean (s)", "Mean end-to-end request time in seconds.", "number", False),
     "latency_median_sec": ColumnMeta("Latency median (s)", "Median end-to-end request time in seconds.", "number", False),
     "latency_p50_sec": ColumnMeta("Latency P50 (s)", "50th percentile request latency in seconds.", "number", False),
@@ -192,10 +194,15 @@ def main() -> None:
     scenarios = sorted(df["scenario"].dropna().unique())
     providers = sorted(df["cloud_provider"].dropna().unique())
     gpus = sorted(df["gpu_name"].dropna().unique())
+    engines = sorted(df["inference_engine"].dropna().unique()) if "inference_engine" in df.columns else []
 
     selected_scenarios = st.sidebar.multiselect("Scenarios", scenarios, default=scenarios)
     selected_providers = st.sidebar.multiselect("Cloud providers", providers, default=providers)
     selected_gpus = st.sidebar.multiselect("GPU models", gpus, default=gpus)
+    if engines:
+        selected_engines = st.sidebar.multiselect("Inference engines", engines, default=engines)
+    else:
+        selected_engines = []
 
     optional_choices = {
         col: COLUMN_META[col].label for col in OPTIONAL_COLUMNS if col in df.columns and col in COLUMN_META
@@ -216,6 +223,8 @@ def main() -> None:
         & df["cloud_provider"].isin(selected_providers)
         & df["gpu_name"].isin(selected_gpus)
     ].copy()
+    if selected_engines:
+        filtered = filtered[filtered["inference_engine"].isin(selected_engines)]
 
     if filtered.empty:
         st.info("No rows match the current filters.")

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Launch vLLM with flags from the matrix config (default: configs/benchmark_matrix.yaml).
+# Launch TensorRT-LLM with flags from the matrix config.
 # Writes configs/.active_engine before starting the server.
 set -euo pipefail
 
@@ -12,15 +12,14 @@ if [[ ! -f "$MATRIX" ]]; then
   exit 1
 fi
 
-eval "$(python3 "$ROOT/scripts/engine_config.py" serve-vars vllm "$MATRIX")"
+eval "$(python3 "$ROOT/scripts/engine_config.py" serve-vars tensorrt_llm "$MATRIX")"
 
-echo "Starting vLLM from $MATRIX"
+echo "Starting TensorRT-LLM from $MATRIX"
 echo "  model=$MODEL host=$HOST port=$PORT tp=$TP max_len=$MAX_LEN"
 
-exec vllm serve "$MODEL" \
+exec trtllm-serve serve "$MODEL" \
   --host "$HOST" \
   --port "$PORT" \
-  --tensor-parallel-size "$TP" \
-  --gpu-memory-utilization "$GPU_MEM" \
-  --max-model-len "$MAX_LEN" \
+  --tp "$TP" \
+  --max_seq_len "$MAX_LEN" \
   $EXTRA_ARGS
