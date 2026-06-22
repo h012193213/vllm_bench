@@ -75,8 +75,13 @@ def parse_benchmark_row(
         latency = metrics.get("request_latency")
         ttft = metrics.get("time_to_first_token_ms")
         tpot = metrics.get("time_per_output_token_ms")
+        itl = metrics.get("inter_token_latency_ms")
         out_tps = metrics.get("output_tokens_per_second")
         req_tps = metrics.get("requests_per_second")
+        prompt_tps = metrics.get("prompt_tokens_per_second")
+        total_tps = metrics.get("tokens_per_second")
+        concurrency = metrics.get("request_concurrency")
+        out_tok_per_iter = metrics.get("output_tokens_per_iteration")
 
         latency_p95 = _percentile(latency, "p95")
         ttft_p95 = _percentile(ttft, "p95")
@@ -110,6 +115,7 @@ def parse_benchmark_row(
                 "instance_type": cloud.get("instance_type"),
                 "cpu_model": cpu.get("model"),
                 "cpu_cores": cpu.get("cores"),
+                "cpu_ram_gb": cpu.get("ram_gb"),
                 "gpu_name": gpu_name,
                 "gpu_vram_gb": gpu_vram,
                 "gpu_count": manifest.get("gpu_count", len(gpus)),
@@ -129,9 +135,19 @@ def parse_benchmark_row(
                 "ttft_mean_ms": _metric_value(ttft, "mean"),
                 "ttft_p50_ms": ttft_p50,
                 "ttft_p95_ms": ttft_p95,
+                "ttft_p99_ms": _percentile(ttft, "p99"),
                 "tpot_mean_ms": _metric_value(tpot, "mean"),
+                "tpot_median_ms": _metric_value(tpot, "median"),
+                "tpot_p50_ms": _percentile(tpot, "p50"),
+                "tpot_p95_ms": _percentile(tpot, "p95"),
+                "itl_mean_ms": _metric_value(itl, "mean"),
+                "itl_p95_ms": _percentile(itl, "p95"),
                 "output_tokens_per_sec": _metric_value(out_tps, "mean"),
                 "requests_per_sec": _metric_value(req_tps, "mean"),
+                "prompt_tokens_per_sec": _metric_value(prompt_tps, "mean"),
+                "total_tokens_per_sec": _metric_value(total_tps, "mean"),
+                "concurrency_mean": _metric_value(concurrency, "mean"),
+                "output_tokens_per_iter": _metric_value(out_tok_per_iter, "mean"),
                 "duration_sec": benchmark.get("duration"),
                 "slo_pass": slo_pass,
                 "validation_passed": validation_passed,

@@ -1,18 +1,18 @@
 # Fixed-criteria benchmark matrix for cross-hardware comparison.
 # All platforms must use identical vLLM server flags and GuideLLM scenarios.
 
-model: "QuantTrio/Qwen3.6-27B-AWQ"
+model: "Qwen/Qwen2.5-14B-Instruct-AWQ"
 
 vllm:
   host: "0.0.0.0"
-  port: 8000
+  port: 8001
   tensor_parallel_size: 1
   gpu_memory_utilization: 0.90
   max_model_len: 8192
   extra_args: []
 
 guidellm:
-  target: "http://127.0.0.1:8000"
+  target: "http://127.0.0.1:8001"
   random_seed: 42
   request_format: "/v1/chat/completions"
   data: "kind=synthetic_text,prompt_tokens=256,output_tokens=128,turns=1"

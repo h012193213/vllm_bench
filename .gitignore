@@ -11,8 +11,8 @@ venv/
 vllm_venv/
 .venv/
 
-# Generated on central machine after consolidate
-results/results.duckdb
+# Benchmark output (uploaded from GPU hosts, consolidated locally)
+results/
 
 # Local environment
 .env

@@ -1,7 +1,7 @@
 # Edit once: central machine that receives benchmark results via SSH/rsync.
 upload:
-  enabled: false
-  central_host: "your-analysis-vm.example.com"
+  enabled: true
+  central_host: "137.184.107.199"   # this analysis host (ubuntu-s-2vcpu-4gb-nyc1)
   central_user: "root"
   central_path: "/root/vllm_bench/results"
-  ssh_key: "/root/.ssh/id_rsa"   # optional; set null to use default SSH agent
+  ssh_key: /root/.ssh/vllm_bench_fleet   # optional; set path on GPU host (e.g. /root/.ssh/id_ed25519) or null for default keys

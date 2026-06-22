@@ -5,16 +5,17 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import platform
-import re
 import shutil
 import subprocess
-import sys
 import urllib.error
 import urllib.request
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
+
+ROOT = Path(__file__).resolve().parents[1]
 
 
 def _run(cmd: list[str]) -> str | None:
@@ -56,6 +57,40 @@ def _package_version(module: str) -> str | None:
     return None
 
 
+def load_env_file() -> None:
+    env_path = ROOT / ".env"
+    if not env_path.exists():
+        return
+    for line in env_path.read_text().splitlines():
+        line = line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, _, value = line.partition("=")
+        key = key.strip()
+        value = value.strip().strip('"').strip("'")
+        os.environ.setdefault(key, value)
+
+
+def apply_cloud_env_fallback(cloud: dict[str, Any]) -> dict[str, Any]:
+    """Use CLOUD_* values from .env when metadata auto-detect is insufficient."""
+    provider = os.environ.get("CLOUD_PROVIDER")
+    if not provider:
+        return cloud
+
+    cloud["provider"] = provider
+    for field, env_key in (
+        ("region", "CLOUD_REGION"),
+        ("instance_type", "CLOUD_INSTANCE_TYPE"),
+        ("instance_id", "CLOUD_INSTANCE_ID"),
+        ("availability_zone", "CLOUD_AVAILABILITY_ZONE"),
+    ):
+        value = os.environ.get(env_key)
+        if value:
+            cloud[field] = value
+    cloud["source"] = "env"
+    return cloud
+
+
 def collect_gpus() -> list[dict[str, Any]]:
     gpus: list[dict[str, Any]] = []
     query = _run(
@@ -90,7 +125,18 @@ def collect_gpus() -> list[dict[str, Any]]:
 
 
 def collect_cpu() -> dict[str, Any]:
-    cpu: dict[str, Any] = {"cores": None, "model": None, "architecture": platform.machine()}
+    cpu: dict[str, Any] = {"cores": None, "model": None, "ram_gb": None, "architecture": platform.machine()}
+    meminfo_path = Path("/proc/meminfo")
+    if meminfo_path.exists():
+        for line in meminfo_path.read_text().splitlines():
+            if line.startswith("MemTotal:"):
+                try:
+                    kb = int(line.split()[1])
+                    cpu["ram_gb"] = round(kb / 1024 / 1024, 2)
+                except (IndexError, ValueError):
+                    pass
+                break
+
     lscpu = _run(["lscpu"])
     if not lscpu:
         return cpu
@@ -130,6 +176,7 @@ def collect_cloud() -> dict[str, Any]:
         cloud["availability_zone"] = _fetch(
             "http://169.254.169.254/latest/meta-data/placement/availability-zone", headers=aws_headers
         )
+        cloud["source"] = "metadata"
         return cloud
 
     gcp_headers = {"Metadata-Flavor": "Google"}
@@ -147,6 +194,7 @@ def collect_cloud() -> dict[str, Any]:
         )
         if cloud["region"]:
             cloud["region"] = cloud["region"].rsplit("/", 1)[-1]
+        cloud["source"] = "metadata"
         return cloud
 
     do_id = _fetch("http://169.254.169.254/metadata/v1/id")
@@ -155,19 +203,23 @@ def collect_cloud() -> dict[str, Any]:
         cloud["instance_id"] = do_id
         cloud["region"] = _fetch("http://169.254.169.254/metadata/v1/region")
         cloud["instance_type"] = _fetch("http://169.254.169.254/metadata/v1/size")
+        cloud["source"] = "metadata"
         return cloud
 
     hostname = platform.node()
     if hostname:
         cloud["provider"] = "local"
         cloud["instance_id"] = hostname
+        cloud["source"] = "hostname"
     return cloud
 
 
 def collect_manifest(run_id: str | None = None, notes: str | None = None) -> dict[str, Any]:
+    load_env_file()
+    cloud = apply_cloud_env_fallback(collect_cloud())
+
     if run_id is None:
         ts = datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S")
-        cloud = collect_cloud()
         provider = cloud.get("provider") or "local"
         region = cloud.get("region") or "unknown"
         run_id = f"{ts}-{provider}-{region}"
@@ -176,7 +228,7 @@ def collect_manifest(run_id: str | None = None, notes: str | None = None) -> dic
     manifest: dict[str, Any] = {
         "run_id": run_id,
         "collected_at": datetime.now(timezone.utc).isoformat(),
-        "cloud": collect_cloud(),
+        "cloud": cloud,
         "cpu": collect_cpu(),
         "gpu": gpus,
         "gpu_count": len(gpus),
